@@ -2,6 +2,7 @@
 
 import hashlib
 import hmac
+import json
 import time
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlencode
@@ -22,47 +23,48 @@ class MEXCFuturesClient:
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=10)
+            )
         return self._session
 
-    def _sign(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Add timestamp and HMAC-SHA256 signature to request params."""
-        params["recv_window"] = "5000"
-        timestamp = str(int(time.time() * 1000))
-        params["timestamp"] = timestamp
-
-        sorted_params = sorted(params.items())
-        query = urlencode(sorted_params)
-
-        signature = hmac.HMAC(
+    def _sign(self, timestamp: int, params_str: str = "") -> str:
+        """HMAC-SHA256: sign(api_key + timestamp + params_string)."""
+        message = f"{self.api_key}{timestamp}{params_str}"
+        return hmac.HMAC(
             self.api_secret.encode(),
-            query.encode(),
+            message.encode(),
             hashlib.sha256,
         ).hexdigest()
 
-        params["signature"] = signature
-        return params
+    def _headers(self, params_str: str = "") -> Dict[str, str]:
+        """Build authenticated headers."""
+        ts = int(time.time() * 1000)
+        return {
+            "Content-Type": "application/json",
+            "ApiKey": self.api_key,
+            "Request-Time": str(ts),
+            "Signature": self._sign(ts, params_str),
+        }
 
     async def _request(self, method: str, path: str, params: Optional[Dict] = None) -> Dict:
         """Make signed API request."""
         params = params or {}
-        params = self._sign(params)
-
-        headers = {
-            "ApiKey": self.api_key,
-            "Content-Type": "application/json",
-        }
-
         url = f"{BASE_URL}{path}"
         session = await self._get_session()
 
         try:
             if method == "GET":
-                async with session.get(url, params=params, headers=headers) as resp:
-                    return await resp.json()
+                qs = urlencode(params) if params else ""
+                headers = self._headers(qs)
+                full_url = f"{url}?{qs}" if qs else url
+                async with session.get(full_url, headers=headers) as resp:
+                    return await resp.json(content_type=None)
             else:
-                async with session.post(url, json=params, headers=headers) as resp:
-                    return await resp.json()
+                body = json.dumps(params) if params else ""
+                headers = self._headers(body)
+                async with session.post(url, headers=headers, data=body) as resp:
+                    return await resp.json(content_type=None)
         except Exception as e:
             return {"success": False, "message": str(e)}
 
@@ -85,7 +87,7 @@ class MEXCFuturesClient:
                 return pos
         return None
 
-    # ─── Order Methods ──────────────────────────────────────────────
+    # ─── Order Methods ─────────────────────────────���────────────────
 
     async def place_market_order(
         self,
@@ -101,12 +103,12 @@ class MEXCFuturesClient:
         """
         params = {
             "symbol": symbol,
-            "price": "0",
-            "vol": str(vol),
-            "side": str(side),
-            "type": "5",  # market order
-            "openType": str(open_type),
-            "leverage": str(leverage),
+            "price": 0,
+            "vol": vol,
+            "side": side,
+            "type": 5,  # market order
+            "openType": open_type,
+            "leverage": leverage,
         }
         return await self._request("POST", "/api/v1/private/order/submit", params)
 
@@ -124,12 +126,12 @@ class MEXCFuturesClient:
         """
         params = {
             "symbol": symbol,
-            "price": str(price),
-            "vol": str(vol),
-            "side": str(side),
-            "type": "1",  # limit order
-            "openType": str(open_type),
-            "leverage": str(leverage),
+            "price": price,
+            "vol": vol,
+            "side": side,
+            "type": 1,  # limit order
+            "openType": open_type,
+            "leverage": leverage,
         }
         return await self._request("POST", "/api/v1/private/order/submit", params)
 
@@ -151,7 +153,7 @@ class MEXCFuturesClient:
                 return raw["data"]
         return []
 
-    # ─── TP/SL Methods ──────────────────────────────────────────────
+    # ─── TP/SL Methods ──────────────────────────────���───────────────
 
     async def set_tp_sl(
         self,
@@ -160,25 +162,25 @@ class MEXCFuturesClient:
         stop_loss: Optional[float] = None,
     ) -> Dict:
         """Set take profit and/or stop loss on a position."""
-        params = {"positionId": str(position_id)}
+        params: Dict[str, Any] = {"positionId": position_id}
         if take_profit is not None:
-            params["takeProfitPrice"] = str(take_profit)
+            params["takeProfitPrice"] = take_profit
         if stop_loss is not None:
-            params["stopLossPrice"] = str(stop_loss)
-        return await self._request("POST", "/api/v1/private/position/change_margin", params)
+            params["stopLossPrice"] = stop_loss
+        return await self._request("POST", "/api/v1/private/position/change_tp_sl", params)
 
-    # ─── Leverage ───────────────────────────────────────────────────
+    # ─── Leverage ────────────────────────��──────────────────────────
 
     async def set_leverage(self, symbol: str, leverage: int, open_type: int = 1) -> Dict:
         """Set leverage for a symbol. open_type: 1=isolated, 2=cross."""
         params = {
             "symbol": symbol,
-            "leverage": str(leverage),
-            "openType": str(open_type),
+            "leverage": leverage,
+            "openType": open_type,
         }
         return await self._request("POST", "/api/v1/private/position/change_leverage", params)
 
-    # ─── Account Info ───────────────────────────────────────────────
+    # ─── Account Info ───────────────────────���───────────────────────
 
     async def get_account_assets(self) -> Dict:
         """Get futures account balance/assets."""
@@ -187,7 +189,7 @@ class MEXCFuturesClient:
             return data.get("data", {})
         return {}
 
-    # ─── Cleanup ────────────────────────────────────────────────────
+    # ─── Cleanup ────────────────────────────���───────────────────────
 
     async def close(self):
         """Close HTTP session."""
