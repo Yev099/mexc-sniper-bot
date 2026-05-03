@@ -1,4 +1,4 @@
-"""Connection checker — validates API keys and shows account info.
+"""Connection checker — validates API keys / cookies and shows account info.
 
 Run this before starting the bot to make sure everything is configured correctly.
 Usage: python check_connection.py
@@ -8,7 +8,7 @@ import asyncio
 import sys
 
 from config import Config
-from mexc_api import MEXCFuturesClient
+from mexc_api import MEXCCookieClient, MEXCFuturesClient
 
 
 async def check():
@@ -41,7 +41,7 @@ async def check():
         if usdt:
             balance = usdt.get("availableBalance", usdt.get("equity", "?"))
             print(f"[Master] Balance: {balance} USDT")
-            print("[Master] Connection OK")
+            print("[Master] Connection OK ✓")
         else:
             print("[Master] Connected but no USDT balance found")
     else:
@@ -66,17 +66,27 @@ async def check():
     else:
         print(f"\n[Followers] Count: {len(config.followers)}")
         for f in config.followers:
-            print(f"  - {f.name} (ratio={f.ratio}, key={f.api_key[:8]}...)")
-            client = MEXCFuturesClient(f.api_key, f.api_secret, f.name)
+            auth = f.auth_type
+            if auth == "api_key":
+                label = f"api_key={f.api_key[:8]}..."
+                client = MEXCFuturesClient(f.api_key, f.api_secret, f.name)
+            elif auth == "cookie":
+                label = f"cookie={f.u_id[:12]}..."
+                client = MEXCCookieClient(f.u_id, f.name, proxy=f.proxy)
+            else:
+                print(f"  - {f.name} (ratio={f.ratio}) — NO AUTH CONFIGURED ✗")
+                continue
+
+            print(f"  - {f.name} (ratio={f.ratio}, {label})")
             a = await client.get_account_assets()
             if a:
-                print(f"    Connection OK")
+                print(f"    Connection OK ✓")
             else:
-                print(f"    ERROR: Cannot connect. Check key/secret.")
+                print(f"    ERROR: Cannot connect ✗")
             await client.close()
 
     # Telegram
-    print(f"\n[Telegram] Token: {'configured' if config.telegram_bot_token else 'NOT SET (optional)'}")
+    print(f"\n[Telegram] Token: {'configured ✓' if config.telegram_bot_token else 'NOT SET (optional)'}")
     print(f"[Telegram] Chat ID: {config.telegram_chat_id or 'NOT SET (optional)'}")
 
     print("\n" + "=" * 50)

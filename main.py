@@ -34,11 +34,13 @@ async def main():
         sys.exit(1)
 
     if not config.followers:
-        log.error("No follower accounts configured. Check FOLLOWERS in .env file.")
+        log.error("No follower accounts configured. Check FOLLOWERS or FOLLOWERS_COOKIE in .env file.")
         sys.exit(1)
 
     log.info("Master account configured")
-    log.info("Followers: %s", ", ".join(f.name for f in config.followers))
+    log.info("Followers: %s", ", ".join(
+        f"{f.name}({f.auth_type})" for f in config.followers
+    ))
 
     # Initialize services
     copy_service = CopyTradingService(config)

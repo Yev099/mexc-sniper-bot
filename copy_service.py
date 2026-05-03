@@ -161,6 +161,13 @@ class CopyTradingService:
                               side: int, vol: int, leverage: int,
                               tp: Optional[float], sl: Optional[float]):
         """Open position on one follower + set TP/SL."""
+        # Skip if follower already has this position (avoids duplicates on restart)
+        pos_type = 1 if side in (1, 2) else 2
+        existing = await client.get_position_by_symbol(symbol, pos_type)
+        if existing and int(existing.get("holdVol", 0)) > 0:
+            log.info("[SKIP] %s already has %s position", client.name, symbol)
+            return
+
         # Set leverage first
         await client.set_leverage(symbol, leverage)
 

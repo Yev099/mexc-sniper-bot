@@ -41,13 +41,24 @@ python main.py
 |----------|------------|
 | `MEXC_API_KEY` | Master account API key |
 | `MEXC_API_SECRET` | Master account API secret |
-| `FOLLOWERS` | Comma-separated list: `name:key:secret:ratio` |
+| `FOLLOWERS` | API key followers: `name:key:secret:ratio` (comma-separated) |
+| `FOLLOWERS_COOKIE` | Cookie followers: `name\|u_id\|ratio\|proxy\|ua` (pipe-separated, comma between accounts) |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather |
 | `TELEGRAM_CHAT_ID` | Your Telegram chat ID |
 | `POLL_INTERVAL` | Polling interval in seconds (default: 0.5) |
 | `DEFAULT_LEVERAGE` | Default leverage if not detected (default: 20) |
 | `COPY_LIMIT_ORDERS` | Copy pending/limit orders (default: true) |
 | `COPY_TP_SL` | Copy take profit / stop loss (default: true) |
+
+## Two Auth Methods
+
+**1. API Keys** — standard way. Get from MEXC → Account → API Management.
+
+**2. Cookie (u_id)** — no API keys needed! Get from browser:
+1. Open mexc.com → Futures → press F12 (DevTools)
+2. Network tab → filter `futures.mexc.com`
+3. Click any request → Headers → copy `Authorization` value
+4. That's your u_id — paste into `FOLLOWERS_COOKIE`
 
 ## How to Get API Keys
 
@@ -77,12 +88,12 @@ python main.py
 ## Architecture
 
 ```
-main.py          → Entry point, wires everything together
-config.py        → Loads .env, parses follower accounts
-mexc_api.py      → MEXC Futures API client (HMAC-SHA256 signing)
-copy_service.py  → Core copy trading logic (polling, replication)
+main.py              → Entry point, wires everything together
+config.py            → Loads .env, parses follower accounts
+mexc_api.py          → MEXC API client (API keys + Cookie/u_id auth)
+copy_service.py      → Core copy trading logic (polling, replication)
 telegram_bot.py      → Telegram bot (notifications + control)
-check_connection.py  → Validates API keys before first run
+check_connection.py  → Validates keys/cookies before first run
 ```
 
 ## How Copy Trading Works
