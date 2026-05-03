@@ -41,17 +41,17 @@ cp .env.example .env
 
 ```env
 # Мастер-аккаунт (с которого копируем)
-MEXC_API_KEY=mx0vgl...твой_ключ
-MEXC_API_SECRET=abc123...твой_секрет
+MEXC_API_KEY=вставь_свой_api_key
+MEXC_API_SECRET=вставь_свой_secret
 
 # Фолловеры (кто копирует) — через запятую
 # Формат: ИМЯ:КЛЮЧ:СЕКРЕТ:МНОЖИТЕЛЬ
 # МНОЖИТЕЛЬ: 1.0 = такой же объём, 0.5 = половина, 2.0 = двойной
-FOLLOWERS=vasya:mx0vgl...:abc...:1.0,petya:mx0vgl...:def...:0.5
+FOLLOWERS=vasya:key:secret:1.0,petya:key:secret:0.5
 
 # Telegram бот (необязательно, но рекомендуется)
-TELEGRAM_BOT_TOKEN=7123456789:AAF...
-TELEGRAM_CHAT_ID=123456789
+TELEGRAM_BOT_TOKEN=вставь_токен_от_botfather
+TELEGRAM_CHAT_ID=вставь_свой_chat_id
 
 # Настройки
 POLL_INTERVAL=0.5
