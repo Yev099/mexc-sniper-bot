@@ -26,9 +26,14 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your API keys
 
+# Verify connection
+python check_connection.py
+
 # Run
 python main.py
 ```
+
+> **New here?** Read [QUICK_START.md](QUICK_START.md) — full guide in Russian/English.
 
 ## Configuration (.env)
 
@@ -76,7 +81,8 @@ main.py          → Entry point, wires everything together
 config.py        → Loads .env, parses follower accounts
 mexc_api.py      → MEXC Futures API client (HMAC-SHA256 signing)
 copy_service.py  → Core copy trading logic (polling, replication)
-telegram_bot.py  → Telegram bot (notifications + control)
+telegram_bot.py      → Telegram bot (notifications + control)
+check_connection.py  → Validates API keys before first run
 ```
 
 ## How Copy Trading Works
